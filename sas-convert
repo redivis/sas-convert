@@ -17,7 +17,6 @@ prefix=
 if [ ! "x${JAVA_HOME}" == "x" ]; then
     prefix="${JAVA_HOME}/bin/"
 fi
-
+# export GOOGLE_APPLICATION_CREDENTIALS="$here/gcloud-dev.json"
 # Run the jar
 ${prefix}java -jar "${jar}" $@
-
