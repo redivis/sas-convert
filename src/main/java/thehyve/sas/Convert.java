@@ -162,9 +162,6 @@ public class Convert {
 
 				String outBucketName = out_filename.replace("gs://", "").split("/")[0];
 				String outObjectName = out_filename.replace("gs://" + bucketName + "/", "");
-				log.info("BucketName " + bucketName);
-				log.info("ObjectName " + objectName);
-				// gs://redivis-data-dev/truven_dental/dnmcn073.sas7bdat
 				ReadChannel reader = storage.reader(bucketName, objectName);
 				InputStream fin = Channels.newInputStream(reader);
 				OutputStream metadataOut = new FileOutputStream(metadata_filename);
