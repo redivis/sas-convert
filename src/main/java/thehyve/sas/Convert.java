@@ -7,14 +7,17 @@ package thehyve.sas;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.channels.Channels;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
+
 import java.util.Date;
 import java.text.DateFormat;
-
+import java.util.TimeZone;
+import java.sql.Timestamp;
 import java.text.SimpleDateFormat;
 import java.util.List;
 
@@ -58,20 +61,25 @@ public class Convert {
     public static final String USAGE = "Usage: sas-convert <file.sas> [file.csv]\n\nWhen only one filename is supplied, output will be sent to stdout.\n\nOptions:\n\n-o, --only-column-names\n       Only write column names before data rows (default is to write three\n       header lines: labels, names, and formats)\n\n-a, --auto-create-csv\n       Instead of sending output to stdout when only an input filename is\n       provided, this will save it to a file based on the name of the input file\n       (e.g. `sas-convert my-filename.sas7bdat` will produce my-filename.csv).";
     private static final Logger log = LoggerFactory.getLogger(Convert.class);
 
-    public void convert(InputStream in, OutputStream out, OutputStream metadataOut) throws IOException {
+    public void convert(InputStream in, OutputStream out, OutputStream metadataOut, String progressFileName) throws IOException {
         Date start = new Date();
         SasFileReader reader = new SasFileReaderImpl(in);
         CSVWriter writer = new CSVWriter(new OutputStreamWriter(out));
 		CSVWriter metadataWriter = new CSVWriter(new OutputStreamWriter(metadataOut));
         Object[] data;
+        FileWriter progressFileWriter = null;
         SasFileProperties properties = reader.getSasFileProperties();
         log.info("Reading file " + properties.getName());
         log.info(properties.getRowCount() + " rows.");
+        long totalRowCount = properties.getRowCount();
         List<Column> columns = reader.getColumns();
 		String[] metadata = new String[columns.size()];
         String[] outData = new String[columns.size()];
 		DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
-		DateFormat dateTimeFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss");
+		DateFormat dateTimeFormat = new SimpleDateFormat("yyyy-MM-dd' 'HH:mm:ss");
+
+        dateFormat.setTimeZone(TimeZone.getTimeZone("GMT"));
+        dateTimeFormat.setTimeZone(TimeZone.getTimeZone("GMT"));
 
 		// Writing column names
 		for(int i=0; i < columns.size(); i++) {
@@ -102,11 +110,32 @@ public class Convert {
         try {
             log.info("Writing data...");
             long rowCount = 0;
+            long progress = 0;
             while((data = reader.readNext()) != null) {
                 assert(columns.size() == data.length);
+                 if (progressFileName != null && rowCount * 100 / totalRowCount != progress){
+                    progress = rowCount * 100 / totalRowCount;
+                    progressFileWriter = new FileWriter(progressFileName);
+                    progressFileWriter.write(Long.toString(progress));
+                    progressFileWriter.close();
+                }
+                
                 for(int i=0; i < data.length; i++) {
-					if (data[i] instanceof Date){
-						outData[i] = data[i] == null ? "" : dateFormat.format(data[i]);
+                    if (data[i] instanceof Date){
+                        if (data[i] == null){
+                            outData[i] = "";
+                        }
+                        else {
+                            Date value = (Date) data[i];
+                            if (value.getHours() != 0|| value.getMinutes()!= 0 || value.getSeconds()!= 0){
+                                outData[i] = dateTimeFormat.format(value);
+                            } else {
+                                outData[i] =  dateFormat.format(value);
+                            }
+                        }
+                       
+                        // Date date = data[i];
+						
 					}
 					else {
 						outData[i] = data[i] == null ? "" : data[i].toString();
@@ -133,7 +162,7 @@ public class Convert {
 
     public static void main(String[] args) {
         Options options = new Options();
-		Storage storage = StorageOptions.getDefaultInstance().getService();
+		      Storage storage = StorageOptions.getDefaultInstance().getService();
 
         options.addOption("h", "help", false, "Help");
         options.addOption("o", "only-column-names", false, "Only column names");
@@ -149,7 +178,7 @@ public class Convert {
             if (argList.size() < 3) {
                 System.err.printf("Too few parameters.\n\n" + USAGE + "\n");
                 return;
-            } else if (argList.size() > 3) {
+            } else if (argList.size() > 4) {
                 System.err.printf("Too many parameters.\n\n" + USAGE + "\n");
                 return;
             }
@@ -193,7 +222,7 @@ public class Convert {
                 //     fout = System.out;
                 // }
                 Convert converter = new Convert();
-                converter.convert(fin, fout, metadataOut);
+                converter.convert(fin, fout, metadataOut, argList.size() > 3 ? argList.get(3) : null);
                 fin.close();
                 fout.close();
             } catch (FileNotFoundException e) {
