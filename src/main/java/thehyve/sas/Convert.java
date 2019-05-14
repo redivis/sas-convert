@@ -203,13 +203,20 @@ public class Convert {
 				OutputStream metadataOut = new FileOutputStream(metadata_filename);
                 // FileInputStream fin = new FileInputStream(in_filename);
 
-				BlobId blobId = BlobId.of(outBucketName, outObjectName);
-				BlobInfo blobInfo = BlobInfo.newBuilder(blobId).setContentType("text/csv").build();
-				WriteChannel writer = storage.writer(blobInfo);
-				reader.setChunkSize(33554432);
-				writer.setChunkSize(33554432);
+				OutputStream fout;
 
-				OutputStream fout = Channels.newOutputStream(writer);
+				if (out_filename == "stdout"){
+					fout = System.out;
+				} else {
+					BlobId blobId = BlobId.of(outBucketName, outObjectName);
+					BlobInfo blobInfo = BlobInfo.newBuilder(blobId).setContentType("text/csv").build();
+					WriteChannel writer = storage.writer(blobInfo);
+					reader.setChunkSize(33554432);
+					writer.setChunkSize(33554432);
+
+					fout = Channels.newOutputStream(writer);
+				}
+
 
 
                 // if (argList.size() > 1) {
