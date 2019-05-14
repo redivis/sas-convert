@@ -109,7 +109,6 @@ public class Convert {
 		writer.writeNext(outData);
         try {
             log.info("Writing data...");
-			log.info(progressFileName);
 
             long rowCount = 0;
             long progress = -1;
@@ -207,8 +206,8 @@ public class Convert {
 				BlobId blobId = BlobId.of(outBucketName, outObjectName);
 				BlobInfo blobInfo = BlobInfo.newBuilder(blobId).setContentType("text/csv").build();
 				WriteChannel writer = storage.writer(blobInfo);
-				reader.setChunkSize(67108864);
-				writer.setChunkSize(67108864);
+				reader.setChunkSize(33554432);
+				writer.setChunkSize(33554432);
 
 				OutputStream fout = Channels.newOutputStream(writer);
 
