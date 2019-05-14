@@ -109,17 +109,20 @@ public class Convert {
 		writer.writeNext(outData);
         try {
             log.info("Writing data...");
+			log.info(progressFileName);
+
             long rowCount = 0;
-            long progress = 0;
+            long progress = -1;
             while((data = reader.readNext()) != null) {
                 assert(columns.size() == data.length);
                  if (progressFileName != null && rowCount * 100 / totalRowCount != progress){
                     progress = rowCount * 100 / totalRowCount;
+					// log.info("Progress: " + progress);
                     progressFileWriter = new FileWriter(progressFileName);
                     progressFileWriter.write(Long.toString(progress));
                     progressFileWriter.close();
                 }
-                
+
                 for(int i=0; i < data.length; i++) {
                     if (data[i] instanceof Date){
                         if (data[i] == null){
@@ -133,9 +136,9 @@ public class Convert {
                                 outData[i] =  dateFormat.format(value);
                             }
                         }
-                       
+
                         // Date date = data[i];
-						
+
 					}
 					else {
 						outData[i] = data[i] == null ? "" : data[i].toString();
@@ -152,6 +155,11 @@ public class Convert {
             log.info(rowCount + " rows written.");
             writer.flush();
             writer.close();
+			if (progressFileName != null){
+			   progressFileWriter = new FileWriter(progressFileName);
+			   progressFileWriter.write("100");
+			   progressFileWriter.close();
+		   }
         } catch (IOException e) {
             e.printStackTrace();
             throw e;
@@ -199,7 +207,8 @@ public class Convert {
 				BlobId blobId = BlobId.of(outBucketName, outObjectName);
 				BlobInfo blobInfo = BlobInfo.newBuilder(blobId).setContentType("text/csv").build();
 				WriteChannel writer = storage.writer(blobInfo);
-				// writer.setChunkSize(33554432 / 2);
+				reader.setChunkSize(67108864);
+				writer.setChunkSize(67108864);
 
 				OutputStream fout = Channels.newOutputStream(writer);
 
