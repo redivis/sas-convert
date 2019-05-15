@@ -118,7 +118,7 @@ public class Convert {
                 assert(columns.size() == data.length);
                 if (progressFileName != null && rowCount * 100 / totalRowCount != progress) {
                     progress = rowCount * 100 / totalRowCount;
-                    log.info("Progress: " + progress);
+                    // log.info("Progress: " + progress);
                     progressFileWriter = new FileWriter(progressFileName);
                     progressFileWriter.write(Long.toString(progress));
                     progressFileWriter.close();
