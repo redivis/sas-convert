@@ -17,7 +17,10 @@ import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 
 import java.util.Date;
+import java.util.Locale;
 import java.text.DateFormat;
+import java.text.DecimalFormat;
+import java.text.DecimalFormatSymbols;
 import java.util.TimeZone;
 import java.sql.Timestamp;
 import java.text.SimpleDateFormat;
@@ -64,6 +67,8 @@ public class Convert {
     private static final Logger log = LoggerFactory.getLogger(Convert.class);
 
     public void convert(InputStream in , OutputStream out, OutputStream metadataOut, String progressFileName) throws IOException {
+		TimeZone.setDefault(TimeZone.getTimeZone("UTC"));
+
         Date start = new Date();
         SasFileReader reader = new SasFileReaderImpl( in );
         CSVWriter writer = new CSVWriter(new OutputStreamWriter(out));
@@ -79,6 +84,8 @@ public class Convert {
         String[] outData = new String[columns.size()];
         DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
         DateFormat dateTimeFormat = new SimpleDateFormat("yyyy-MM-dd' 'HH:mm:ss");
+		DecimalFormat decimalFormat = new DecimalFormat("0", DecimalFormatSymbols.getInstance(Locale.ENGLISH));
+		decimalFormat.setMaximumFractionDigits(340); // 340 = DecimalFormat.DOUBLE_FRACTION_DIGITS
 
         dateFormat.setTimeZone(TimeZone.getTimeZone("GMT"));
         dateTimeFormat.setTimeZone(TimeZone.getTimeZone("GMT"));
@@ -97,14 +104,6 @@ public class Convert {
         metadataWriter.flush();
         metadataWriter.close();
 
-        // if (!onlyColumnNames) {
-        //     // Writing column format
-        //     for(int i=0; i < columns.size(); i++) {
-        //         outData[i] = columns.get(i).getFormat();
-        //     }
-        //     writer.writeNext(outData);
-        // }
-
         for (int i = 0; i < columns.size(); i++) {
             outData[i] = columns.get(i).getName();
         }
@@ -115,7 +114,7 @@ public class Convert {
             long rowCount = 0;
             long progress = -1;
             while ((data = reader.readNext()) != null) {
-                assert(columns.size() == data.length);
+
                 if (progressFileName != null && rowCount * 100 / totalRowCount != progress) {
                     progress = rowCount * 100 / totalRowCount;
                     // log.info("Progress: " + progress);
@@ -124,31 +123,35 @@ public class Convert {
                     progressFileWriter.close();
                 }
 
+				// if (rowCount > 10) {
+				// 	break;
+				// }
+
+				rowCount++;
+
+				assert(columns.size() == data.length);
+
                 for (int i = 0; i < data.length; i++) {
-                    if (data[i] instanceof Date) {
-                        if (data[i] == null) {
-                            outData[i] = "";
+					if (data[i] == null) {
+						outData[i] = "";
+					}
+                    else if (data[i] instanceof Date) {
+						Date value = (Date) data[i];
+                        if (value.getHours() != 0 || value.getMinutes() != 0 || value.getSeconds() != 0) {
+                            outData[i] = dateTimeFormat.format(value);
                         } else {
-                            Date value = (Date) data[i];
-                            if (value.getHours() != 0 || value.getMinutes() != 0 || value.getSeconds() != 0) {
-                                outData[i] = dateTimeFormat.format(value);
-                            } else {
-                                outData[i] = dateFormat.format(value);
-                            }
+                            outData[i] = dateFormat.format(value);
                         }
-
-                        // Date date = data[i];
-
-                    } else {
-                        outData[i] = data[i] == null ? "" : data[i].toString();
+                    }
+					else if (data[i] instanceof Double || data[i] instanceof Long){
+						outData[i] = decimalFormat.format(data[i]);
+					}
+					else{
+                        outData[i] = data[i].toString();
                     }
 
                 }
                 writer.writeNext(outData);
-                rowCount++;
-                // if (rowCount > 2){
-                // 	break;
-                // }
             }
             log.info("Done writing data.");
             log.info(rowCount + " rows written.");
@@ -218,7 +221,6 @@ public class Convert {
                     log.info("Reading from GCS: " + bucketName + "/" + objectName);
 
                     ReadChannel reader = storage.reader(bucketName, objectName);
-                    // reader.setChunkSize(33554432);
                     fin = new BufferedInputStream(Channels.newInputStream(reader), 33554432);
                 } else {
                     log.info("Reading from file: " + in_filename);
@@ -235,8 +237,6 @@ public class Convert {
                     BlobId blobId = BlobId.of(outBucketName, outObjectName);
                     BlobInfo blobInfo = BlobInfo.newBuilder(blobId).setContentType("text/csv").build();
                     WriteChannel writer = storage.writer(blobInfo);
-                    // writer.setChunkSize(33554432);
-
                     fout = new BufferedOutputStream(Channels.newOutputStream(writer), 33554432 * 2);
                 } else {
                     log.info("Writing to file: " + out_filename);
@@ -252,9 +252,9 @@ public class Convert {
             } catch (IOException e) {
                 e.printStackTrace();
             }
-						 catch (InterruptedException e){
-								e.printStackTrace();
-						}
+			catch (InterruptedException e){
+				e.printStackTrace();
+			}
         } catch (ParseException e) {
             System.err.printf(USAGE + "\n");
             e.printStackTrace();
