@@ -240,9 +240,6 @@ public class Convert {
             } catch (IOException e) {
                 e.printStackTrace();
             }
-			catch (InterruptedException e){
-				e.printStackTrace();
-			}
         } catch (ParseException e) {
             System.err.printf(USAGE + "\n");
             e.printStackTrace();
