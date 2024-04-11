@@ -202,19 +202,7 @@ public class Convert {
 
                 if (in_filename.equals("stdin")) {
                     log.info("Reading from stdin");
-                    fin = new BufferedInputStream(System.in, 1048576);
-										// TODO: this doesn't work
-										Thread.sleep(4000);
-										// while (true){
-										// 	log.info(Integer.toString(fin.available()));
-										// 	log.info(Boolean.toString(fin.available() != 0));
-										// 	if (fin.available() != 0){
-										// 		log.info(Integer.toString(fin.available()));
-										// 		log.info(Integer.toString(fin.available()));
-										//
-										// 		break;
-										// 	}
-										// }
+                    fin = new BufferedInputStream(System.in);
                 } else if (in_filename.startsWith("gs://")) {
                     String bucketName = in_filename.replace("gs://", "").split("/")[0];
                     String objectName = in_filename.replace("gs://" + bucketName + "/", "");
